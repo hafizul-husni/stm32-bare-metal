@@ -7,6 +7,7 @@
  * startup_ok   is set to 1 only if both checks pass
  */
 #include <stdint.h>
+#include "uart.h"
 
 #define BOOT_MAGIC 0xC0FFEEu
 
@@ -19,6 +20,9 @@ int main(void)
     if (boot_magic == BOOT_MAGIC && loop_counter == 0) {
         startup_ok = 1;
     }
+
+    uart_init();
+    uart_puts("Hello from bare-metal STM32!\r\n");
 
     while (1) {
         loop_counter++;

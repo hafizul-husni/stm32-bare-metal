@@ -7,3 +7,7 @@ machine LoadPlatformDescription @platforms/boards/stm32f4_discovery-kit.repl
 
 $bin ?= @build/firmware.elf
 sysbus LoadELF $bin
+
+# Route USART2 output to the console (used by `make run`, which passes
+# --console) instead of opening a separate terminal window.
+showAnalyzer sysbus.usart2

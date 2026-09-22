@@ -7,11 +7,11 @@ SIZE    := arm-none-eabi-size
 
 CPU     := -mcpu=cortex-m4 -mthumb
 CFLAGS  := $(CPU) -std=c11 -Wall -Wextra -Werror -Og -g3 \
-           -ffreestanding -ffunction-sections -fdata-sections
+           -ffreestanding -ffunction-sections -fdata-sections -Idrivers
 LDFLAGS := $(CPU) -T linker/stm32f407.ld -nostdlib \
            -Wl,--gc-sections -Wl,-Map=$(BUILD)/$(TARGET).map
 
-SRCS := src/main.c startup/startup_stm32f407.c
+SRCS := src/main.c startup/startup_stm32f407.c drivers/uart.c
 OBJS := $(SRCS:%.c=$(BUILD)/%.o)
 
 all: $(BUILD)/$(TARGET).elf $(BUILD)/$(TARGET).bin
@@ -28,7 +28,7 @@ $(BUILD)/$(TARGET).bin: $(BUILD)/$(TARGET).elf
 	$(OBJCOPY) -O binary $< $@
 
 run: all
-	renode renode/stm32f4.resc
+	renode --console renode/stm32f4.resc
 
 clean:
 	rm -rf $(BUILD)
