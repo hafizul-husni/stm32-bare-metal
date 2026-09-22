@@ -35,6 +35,13 @@ sysbus ReadDoubleWord 0x20000004   # startup_ok   -> 0x00000001 (checks passed)
 sysbus ReadDoubleWord 0x20000008   # loop_counter -> keeps increasing (main is running)
 ```
 
+## Demo
+`make run` booting the firmware in Renode — the USART2 analyzer window shows
+`Hello from bare-metal STM32!` printed at 115200 baud, straight from the
+register-level driver (Day 2):
+
+![Day 2 UART demo: Renode console booting the firmware and the USART2 analyzer window showing "Hello from bare-metal STM32!"](docs/images/day2-uart-demo.png)
+
 ## Design decisions
 - **Startup code in C instead of assembly:** easier to read and review; the Cortex-M core loads the stack pointer from the vector table itself, so no assembly is required.
 - **Weak aliased handlers:** any interrupt handler can be overridden just by defining a function with the same name.
