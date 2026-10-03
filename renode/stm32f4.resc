@@ -5,9 +5,27 @@ using sysbus
 mach create "stm32f4"
 machine LoadPlatformDescription @platforms/boards/stm32f4_discovery-kit.repl
 
+# Day 4: this board file's nvic (which also models the Cortex-M SysTick
+# timer) defaults to a 72 MHz systick clock -- that assumes a firmware
+# that has already configured the PLL for a fast core clock. Ours never
+# touches the PLL, so it's still running on the 16 MHz HSI reset clock
+# that drivers/systick.c's reload-value calculation assumes. Without
+# this override, SysTick would fire ~4.5x faster than the firmware
+# expects and the LED would blink at ~111 ms instead of 500 ms.
+sysbus.nvic Frequency 16000000
+
+# Day 4: show the green user LED's (PD12) state changes in the console
+# log, so the 500 ms-spaced toggles are visible without extra hardware.
+# -1 selects the NOISY log level, which is what LED state changes log at.
+logLevel -1 sysbus.gpioPortD.UserLED
+
 $bin ?= @build/firmware.elf
 sysbus LoadELF $bin
 
 # Route USART2 output to the console (used by `make run`, which passes
-# --console) instead of opening a separate terminal window.
+# --console) instead of opening a separate terminal window. Each line is
+# timestamped with both host and *virtual* (simulated MCU) time, e.g.
+# "virt: 2.5s" -- the LED toggle message printed over UART below uses
+# that virtual timestamp to confirm the 500 ms period in firmware time,
+# independent of however fast the host happens to run the simulation.
 showAnalyzer sysbus.usart2
