@@ -11,7 +11,7 @@ CFLAGS  := $(CPU) -std=c11 -Wall -Wextra -Werror -Og -g3 \
 LDFLAGS := $(CPU) -T linker/stm32f407.ld -nostdlib \
            -Wl,--gc-sections -Wl,-Map=$(BUILD)/$(TARGET).map
 
-SRCS := src/main.c startup/startup_stm32f407.c drivers/uart.c lib/ring_buffer.c
+SRCS := src/main.c startup/startup_stm32f407.c drivers/uart.c drivers/gpio.c lib/ring_buffer.c
 OBJS := $(SRCS:%.c=$(BUILD)/%.o)
 
 # Host-native unit tests for lib/ (hardware-independent code), using the
