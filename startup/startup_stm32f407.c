@@ -32,8 +32,16 @@ void SVC_Handler(void)        __attribute__((weak, alias("Default_Handler")));
 void DebugMon_Handler(void)   __attribute__((weak, alias("Default_Handler")));
 void PendSV_Handler(void)     __attribute__((weak, alias("Default_Handler")));
 void SysTick_Handler(void)    __attribute__((weak, alias("Default_Handler")));
+void USART2_IRQHandler(void)  __attribute__((weak, alias("Default_Handler")));
 
-/* Core exception vectors. Peripheral IRQs (e.g. USART2) will be added on Day 3. */
+/*
+ * Core exception vectors (indices 0-15), then peripheral interrupts
+ * starting at index 16: vector_table[16 + IRQn] holds IRQn's handler, per
+ * RM0090's vector table. Only USART2 (IRQ38, Day 3's RX interrupt) is
+ * wired to a real handler (defined in drivers/uart.c, overriding the weak
+ * alias below); every other peripheral IRQ slot points at Default_Handler
+ * until a driver for it exists.
+ */
 __attribute__((section(".isr_vector"), used))
 void (* const vector_table[])(void) = {
     (void (*)(void))(&_estack),  /* 0: initial stack pointer */
@@ -49,6 +57,9 @@ void (* const vector_table[])(void) = {
     0,                           /* 13: reserved             */
     PendSV_Handler,              /* 14                       */
     SysTick_Handler,             /* 15                       */
+
+    [16 ... 53] = Default_Handler,   /* IRQ0-37: unused so far */
+    [54]        = USART2_IRQHandler, /* IRQ38: USART2           */
 };
 
 void Reset_Handler(void)

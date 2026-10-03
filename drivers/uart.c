@@ -5,6 +5,7 @@
  */
 #include <stdint.h>
 #include "uart.h"
+#include "ring_buffer.h"
 
 /* ---- RCC (Reset and Clock Control), base 0x40023800 ---- */
 #define RCC_BASE    0x40023800UL
@@ -26,10 +27,19 @@
 #define USART2_BRR  (*(volatile uint32_t *)(USART2_BASE + 0x08))
 #define USART2_CR1  (*(volatile uint32_t *)(USART2_BASE + 0x0C))
 
-#define USART2_SR_TXE (1u << 7)
-#define USART2_CR1_RE (1u << 2)
-#define USART2_CR1_TE (1u << 3)
-#define USART2_CR1_UE (1u << 13)
+#define USART2_SR_ORE  (1u << 3)
+#define USART2_SR_RXNE (1u << 5)
+#define USART2_SR_TXE  (1u << 7)
+#define USART2_CR1_RE     (1u << 2)
+#define USART2_CR1_TE     (1u << 3)
+#define USART2_CR1_RXNEIE (1u << 5)
+#define USART2_CR1_UE     (1u << 13)
+
+/* ---- NVIC (Cortex-M4 core) ---- */
+#define NVIC_ISER1 (*(volatile uint32_t *)(0xE000E104UL))
+#define NVIC_USART2_BIT (1u << 6) /* USART2 = IRQ38; ISER1 covers IRQ32-63, bit 38-32=6 */
+
+static ring_buffer_t uart_rx_buffer;
 
 void uart_init(void)
 {
@@ -65,9 +75,14 @@ void uart_init(void)
      */
     USART2_BRR = (8u << 4) | 11u;
 
-    /* Enable transmitter and receiver (RX wired up on Day 3), then the USART itself */
-    USART2_CR1 |= USART2_CR1_TE | USART2_CR1_RE;
+    ring_buffer_init(&uart_rx_buffer);
+
+    /* Enable transmitter, receiver, and the RX-not-empty interrupt, then the USART itself */
+    USART2_CR1 |= USART2_CR1_TE | USART2_CR1_RE | USART2_CR1_RXNEIE;
     USART2_CR1 |= USART2_CR1_UE;
+
+    /* Let the NVIC forward USART2's interrupt request to USART2_IRQHandler */
+    NVIC_ISER1 |= NVIC_USART2_BIT;
 }
 
 void uart_putc(char c)
@@ -81,5 +96,42 @@ void uart_puts(const char *s)
 {
     while (*s) {
         uart_putc(*s++);
+    }
+}
+
+bool uart_available(void)
+{
+    return !ring_buffer_is_empty(&uart_rx_buffer);
+}
+
+bool uart_getc(char *c)
+{
+    uint8_t byte;
+    if (!ring_buffer_pop(&uart_rx_buffer, &byte)) {
+        return false;
+    }
+    *c = (char)byte;
+    return true;
+}
+
+void USART2_IRQHandler(void)
+{
+    uint32_t sr = USART2_SR;
+
+    if (sr & (USART2_SR_RXNE | USART2_SR_ORE)) {
+        /*
+         * Reading DR after SR clears both RXNE and ORE, whichever is
+         * set. We must always do this read when either flag is set --
+         * on overrun the byte that triggered ORE is already gone (a
+         * different byte was lost before we got here), but skipping
+         * the read would leave ORE stuck high and the USART would keep
+         * re-firing this interrupt forever.
+         */
+        uint8_t byte = (uint8_t)USART2_DR;
+
+        if (!(sr & USART2_SR_ORE)) {
+            (void)ring_buffer_push(&uart_rx_buffer, byte);
+        }
+        /* On ORE, the byte just read is stale/not ours to keep -- drop it. */
     }
 }

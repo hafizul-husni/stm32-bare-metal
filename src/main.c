@@ -26,5 +26,11 @@ int main(void)
 
     while (1) {
         loop_counter++;
+
+        /* Day 3: echo bytes received via the USART2 RX interrupt */
+        char c;
+        if (uart_getc(&c)) {
+            uart_putc(c);
+        }
     }
 }
